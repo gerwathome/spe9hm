@@ -29,7 +29,7 @@ In the oil saturation comparison plots below (plotted with ResInsight), note in 
 
 Because ***flow*** does not implement `OLDTRAN`, the block centered model fails to capture the expected lateral connectivity.  This caveat for using ***flow*** was not apparent to me until I examined these two models.  It appears that even though the block centered keywords are supported, they should be used only with great caution, as they will not act as expected.
 
-It would be nice to see an open source tool which would convert a simple block centered grid to a corner point grid.  More complex grids with faults and pinchouts are better handled with corner point geometry, but simple models work very well with block centered geometry, and are much simpler to construct.
+It would be nice to see an open source tool which would convert a simple block centered grid to a corner point grid.  More complex grids with faults and pinchouts are better handled with corner point geometry, but simple models work very well with block centered geometry, and are much easier to construct.
 
 ![Compare Block Centered with Corner Point SPE9 Models](/home/gerw/gitrepos/spe9hm/test/OUTPUT/cf_spe9cp.png "SPE9")
 
