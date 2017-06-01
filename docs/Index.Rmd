@@ -17,7 +17,7 @@ First we obtain the SPE9 decks from the OPM repository.  There are two SPE9 deck
 
 The SPE9.DATA deck is edited slightly so that the output options look a little more like SPE9_CP.DATA.  After running the SPE9 decks with ***flow***, the field level results are plotted below.
 
-```{r cartesian_or_cornerpoint, out.width='45%', out.height='45%'}
+```{r cartesian_or_cornerpoint, eval=FALSE, results='hide', out.width='45%', out.height='45%'}
 library(runOPM)
 results <- eclsum(basedir="test")
 ploteach(results, wgnames="FIELD")
@@ -31,5 +31,5 @@ Because ***flow*** does not implement `OLDTRAN`, the block centered model fails 
 
 It would be nice to see an open source tool which would convert a simple block centered grid to a corner point grid.  More complex grids with faults and pinchouts are better handled with corner point geometry, but simple models work very well with block centered geometry, and are much simpler to construct.
 
-![Compare Block Centered with Corner Point SPE9 Models](/home/gerw/gitrepos/spe9hm/test/OUTPUT/cf_spe9cp.png "SPE9")
+[Compare Block Centered with Corner Point SPE9 Models](/home/gerw/gitrepos/spe9hm/test/OUTPUT/cf_spe9cp.png "SPE9")
 
