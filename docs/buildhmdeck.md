@@ -1,24 +1,16 @@
----
-title: "Building a History Match Deck"
-author: "George Williams"
-date: "May 25, 2017"
-output:
-  html_document:
-    keep_md: yes
----
+# Building a History Match Deck
+George Williams  
+May 25, 2017  
 
-```{r setup, include=FALSE}
-require(knitr)
-knitr::opts_knit$set(root.dir = "~/gitrepos/spe9hm/")
-knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
-```
+
 
 ## Examining the SPE9 Models
 This work is done in [R](https://www.r-project.org/), and is helped along using an R package that is under development to work with the OPM modeling tools, [runOPM](https://github.com/gerwathome/runOPM).
 
 First we need to get the SPE9 deck from the OPM repository.  There are two SPE9 decks, one with a block centered description , and one with a corner point description.  We will try both the cartesian and corner point decks, to try to understand the differences.  These decks will be put into a "test" project.
 
-```{r getdata, eval=TRUE}
+
+```r
 library(runOPM)
 ok <- makeproj(basedir="test")
 if(!ok){warning("There seems to have been a problem in making the project directory structure")}
@@ -40,9 +32,15 @@ decks <- list.files(path = deckpath,
 decks
 ```
 
+```
+## [1] "test/DECKS/PERMVALUES.DATA" "test/DECKS/SPE9_CP.DATA"   
+## [3] "test/DECKS/SPE9.DATA"       "test/DECKS/TOPSVALUES.DATA"
+```
+
 Some of these files look more like include files, and should be in lower level directories.  Let's search for INCLUDE in the files to see which files are which.
 
-```{r checkincludes, eval=TRUE}
+
+```r
 for(deck in decks){
   deckname <- basename(deck)
   dk <- readLines(deck, warn = FALSE)
@@ -55,9 +53,17 @@ for(deck in decks){
   }
 }
 ```
+
+```
+## [1] "deck:SPE9_CP.DATA, line:  86, text:  \t'SPE9.GRDECL' /"
+## [1] "deck:SPE9_CP.DATA, line:  109, text:  \tPERMVALUES.DATA /"
+## [1] "deck:SPE9.DATA, line:  109, text:  \tTOPSVALUES.DATA /"
+## [1] "deck:SPE9.DATA, line:  132, text:  \tPERMVALUES.DATA /"
+```
 It looks like three include files in two main decks.  We will move the include files down a directory, change the extents so they won't be confused with decks anymore, and change the include file names in the main decks.  We will put the "includes" in a GRID subdirectory.
 
-```{r fix_includes, eval=TRUE}
+
+```r
 gridpath <- file.path(deckpath,"GRID")
 if(!dir.exists(gridpath)){dir.create(gridpath)}
 incfiles <- c("SPE9.GRDECL", "PERMVALUES.DATA", "TOPSVALUES.DATA")
@@ -77,7 +83,8 @@ for(fn in deckfiles){
 }
 ```
 The SPE9.DATA deck needs some edits to be a little more consistent with SPE9_CP.DATA, which appears to give the results expected by the original SPE9 paper.  Thes are mostly output changes.
-```{r edit SPE9.DATA}
+
+```r
 fn <- "SPE9.DATA"
 fnp <- file.path(deckpath, fn)
 f <- readLines(fnp)
@@ -99,14 +106,38 @@ writeLines(f, con=fnp)
 ```
 
 Next we run the SPE9 decks to see how they work with ***flow***.
-```{r cartesian_or_cornerpoint, out.width='45%', out.height='45%'}
+
+```r
 for(deck in deckfiles){
  ok <- runflow(deck, basedir = "test", wait=TRUE)
  if(ok > 0){print(ok)}
 }
+```
+
+```
+## Warning in runflow(deck, basedir = "test", wait = TRUE): Case not run
+## because existing summary is newer than input deck.
+```
+
+```
+## [1] "Case not run because existing summary is newer than input deck."
+```
+
+```
+## Warning in runflow(deck, basedir = "test", wait = TRUE): Case not run
+## because existing summary is newer than input deck.
+```
+
+```
+## [1] "Case not run because existing summary is newer than input deck."
+```
+
+```r
 results <- eclsum(basedir="test")
 ploteach(results, wgnames="FIELD")
 ```
+
+<img src="buildhmdeck_files/figure-html/cartesian_or_cornerpoint-1.png" width="45%" height="45%" /><img src="buildhmdeck_files/figure-html/cartesian_or_cornerpoint-2.png" width="45%" height="45%" /><img src="buildhmdeck_files/figure-html/cartesian_or_cornerpoint-3.png" width="45%" height="45%" /><img src="buildhmdeck_files/figure-html/cartesian_or_cornerpoint-4.png" width="45%" height="45%" />
 
 Both SPE9 decks run, but give significantly different answers.  Trying to find an explanation online, I found this github thread: [SPE9.DATA #81](https://github.com/OPM/opm-data/issues/81).  It says (if I understand it correctly) that the SPE9_CP deck, with explicitly defined corner point connections, provides the correct answer.  The block-centered version of the deck doesn't do what one would expect because ***flow*** does not implement the Eclipse keyword `OLDTRAN`.  The old method of transmissibility calculation was the classic cartesian approach that assumed only lateral connectivity in *ijk* space, not *xyz* space.  Becuase ***flow*** uses the new transmissibility calculation method, an old style 'sugar cube' model will communicate with multiple cubes laterally when the cell dimensions and elevations imply overlapping cells in *xyz* space.
 
@@ -120,6 +151,4 @@ Because ***flow*** does not implement `OLDTRAN`, the block centered model fails 
 
 We will pull out the porosity and permeability, so we can make some rock regions.  The intent is to do some kmeans clustering to define rock groups, and then create regions in the deck suitable for history matching.
 
-```{r poro_perm}
 
-```

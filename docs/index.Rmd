@@ -11,7 +11,7 @@ knitr::opts_knit$set(root.dir = "~/gitrepos/spe9hm/")
 knitr::opts_chunk$set(echo = FALSE, cache=TRUE)
 ```
 
-This work is done in [R](https://www.r-project.org/), and is helped along using an R package that is under development to work with the OPM modeling tools, [runOPM](https://github.com/gerwathome/runOPM).  If one is interested in the R code to retrieve, run, and plot the models, it is [here](https://github.com/gerwathome/spe9hm/docs/buildhmdeck.html).
+This work is done in [R](https://www.r-project.org/), and is helped along using an R package that is under development to work with the OPM modeling tools, [runOPM](https://github.com/gerwathome/runOPM).  If one is interested in the R code to retrieve, run, and plot the models, it is [here](https://github.com/gerwathome/spe9hm/blob/master/docs/buildhmdeck.html).
 
 First we obtain the SPE9 decks from the OPM repository.  There are two SPE9 decks, one with a block centered description , and one with a corner point description.  We will try both the block centered and the corner point decks, to try to understand the differences.
 
