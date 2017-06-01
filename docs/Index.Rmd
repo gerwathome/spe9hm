@@ -1,0 +1,35 @@
+---
+title: "Using OPM flow with Block Centered Geometry"
+author: "George Williams"
+date: "June 1, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+require(knitr)
+knitr::opts_knit$set(root.dir = "~/gitrepos/spe9hm/")
+knitr::opts_chunk$set(echo = FALSE, cache=TRUE)
+```
+
+This work is done in [R](https://www.r-project.org/), and is helped along using an R package that is under development to work with the OPM modeling tools, [runOPM](https://github.com/gerwathome/runOPM).  If one is interested in the R code to retrieve, run, and plot the models, it is [here](https://github.com/gerwathome/spe9hm/docs/buildhmdeck.html).
+
+First we obtain the SPE9 decks from the OPM repository.  There are two SPE9 decks, one with a block centered description , and one with a corner point description.  We will try both the block centered and the corner point decks, to try to understand the differences.
+
+The SPE9.DATA deck is edited slightly so that the output options look a little more like SPE9_CP.DATA.  After running the SPE9 decks with ***flow***, the field level results are plotted below.
+
+```{r cartesian_or_cornerpoint, out.width='45%', out.height='45%'}
+library(runOPM)
+results <- eclsum(basedir="test")
+ploteach(results, wgnames="FIELD")
+```
+
+Both SPE9 decks run, but give significantly different answers.  Trying to find an explanation online, I found this github thread: [SPE9.DATA #81](https://github.com/OPM/opm-data/issues/81).  It says (if I understand it correctly) that the SPE9_CP deck, with explicitly defined corner point connections, provides the correct answer.  The block-centered version of the deck doesn't do what one would expect because ***flow*** does not implement the Eclipse keyword `OLDTRAN`.  The old method of transmissibility calculation was the classic cartesian approach that assumed only lateral connectivity in *ijk* space, not *xyz* space.  Becuase ***flow*** uses the new transmissibility calculation method, an old style 'sugar cube' model will communicate with multiple cubes laterally when the cell dimensions and elevations imply overlapping cells in *xyz* space.
+
+In the oil saturation comparison plots below (plotted with ResInsight), note in particular the thin layers near the top of the model directly updip of the oil-water contact.  The corner point model captures the expected stratigraphic continuity.  Lower water production in the block centered model, as shown in the plot above, is consistent with lower stratigraphic continuity.  The lack of an easy path updip, and the increased lateral continiuty in *xy* space keeps the water much lower in the model, and leads to the observed lower water production shown above.
+
+Because ***flow*** does not implement `OLDTRAN`, the block centered model fails to capture the expected lateral connectivity.  This caveat for using ***flow*** was not apparent to me until I examined these two models.  It appears that even though the block centered keywords are supported, they should be used only with great caution, as they will not act as expected.
+
+It would be nice to see an open source tool which would convert a simple block centered grid to a corner point grid.  More complex grids with faults and pinchouts are better handled with corner point geometry, but simple models work very well with block centered geometry, and are much simpler to construct.
+
+![Compare Block Centered with Corner Point SPE9 Models](/home/gerw/gitrepos/spe9hm/test/OUTPUT/cf_spe9cp.png "SPE9")
+
