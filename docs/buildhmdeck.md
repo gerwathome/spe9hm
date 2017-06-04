@@ -152,3 +152,31 @@ Because ***flow*** does not implement `OLDTRAN`, the block centered model fails 
 We will pull out the porosity and permeability, so we can make some rock regions.  The intent is to do some kmeans clustering to define rock groups, and then create regions in the deck suitable for history matching.
 
 
+```r
+fn <- file.path(deckpath,"SPE9_CP.DATA")
+poro_perm <- readDeck(deckname = fn, props = c("PORO","PERMX"))
+head(poro_perm)
+```
+
+```
+##    PORO     PERMX
+## 1 0.087  49.29276
+## 2 0.087 162.25308
+## 3 0.087 438.45926
+## 4 0.087 492.32336
+## 5 0.087 791.32867
+## 6 0.087 704.17102
+```
+
+```r
+write.csv(poro_perm, file = "poroperm.csv")
+library(ggplot2)
+ggp <- ggplot(poro_perm, aes(x=PORO, y=PERMX))
+ggp <- ggp + scale_y_log10()
+ggp <- ggp + geom_point()
+ggp
+```
+
+![](buildhmdeck_files/figure-html/poro_perm-1.png)<!-- -->
+
+
