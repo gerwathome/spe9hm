@@ -147,7 +147,7 @@ Because ***flow*** does not implement `OLDTRAN`, the block centered model fails 
 
 ![Compare Block Centered with Corner Point SPE9 Models](../test/OUTPUT/cf_spe9cp.png "SPE9")
 
-## Extracting model information to create plausible history match alternatives
+## Porosity - Permeability relationships
 
 We will pull out the porosity and permeability, so we can make some rock regions.  The intent is to do some kmeans clustering to define rock groups, and then create regions in the deck suitable for history matching.
 
@@ -159,13 +159,13 @@ head(poro_perm)
 ```
 
 ```
-##    PORO     PERMX
-## 1 0.087  49.29276
-## 2 0.087 162.25308
-## 3 0.087 438.45926
-## 4 0.087 492.32336
-## 5 0.087 791.32867
-## 6 0.087 704.17102
+##   I J K  PORO     PERMX
+## 1 1 1 1 0.087  49.29276
+## 2 2 1 1 0.087 162.25308
+## 3 3 1 1 0.087 438.45926
+## 4 4 1 1 0.087 492.32336
+## 5 5 1 1 0.087 791.32867
+## 6 6 1 1 0.087 704.17102
 ```
 
 ```r
@@ -179,4 +179,189 @@ ggp
 
 ![](buildhmdeck_files/figure-html/poro_perm-1.png)<!-- -->
 
+```r
+ggp <- ggplot(poro_perm, aes(x=PERMX, fill=as.factor(K)))
+ggp <- ggp + scale_x_log10()
+ggp <- ggp + geom_density(alpha=0.5)
+ggp
+```
+
+![](buildhmdeck_files/figure-html/poro_perm-2.png)<!-- -->
+
+```r
+ggp <- ggplot(poro_perm, aes(x=PERMX, fill=as.factor(PORO)))
+ggp <- ggp + scale_x_log10()
+ggp <- ggp + geom_density()
+ggp <- ggp + coord_fixed()
+ggp <- ggp + facet_grid(as.factor(K) ~ .)
+ggp
+```
+
+![](buildhmdeck_files/figure-html/poro_perm-3.png)<!-- -->
+
+```r
+ggp <- ggplot(poro_perm, aes(x=PERMX, fill=as.factor(K)))
+ggp <- ggp + scale_x_log10()
+ggp <- ggp + geom_density(alpha=0.5)
+ggp <- ggp + coord_fixed()
+ggp <- ggp + facet_grid(as.factor(PORO) ~ .)
+ggp
+```
+
+![](buildhmdeck_files/figure-html/poro_perm-4.png)<!-- -->
+
+```r
+ggp <- ggplot(poro_perm, aes(x=as.factor(K), y=PERMX,
+                             fill=as.factor(PORO)))
+ggp <- ggp + scale_y_log10()
+ggp <- ggp + geom_boxplot()
+ggp
+```
+
+![](buildhmdeck_files/figure-html/poro_perm-5.png)<!-- -->
+
+## Create a History Match Deck
+There is no obvious porosity/permeability/layer relationship that would allow one to make rational rock type groupings.  The data appear to be a little too artificial  For the purposes of creating a synthetic history match example, we will use permeability multipliers for each of the 15 layers.
+
+```r
+dbg <- TRUE
+ddbg <- FALSE
+set.seed(7734)
+mults <- runif(n=15, min=0.5, max=1.5)
+answer_mults <- 1 / mults
+ok <- makeproj(basedir="sim")
+if(!ok){warning("There seems to have been a problem in making the project directory structure")}
+frompath <- file.path("test", "DECKS")
+topath <- file.path("sim", "DECKS")
+fromdeck <- file.path(frompath, "SPE9_CP.DATA")
+histdeck <- file.path(topath, "HISTORY.DATA")
+basedeck <- file.path(topath, "BASE.DATA")
+ok <- file.copy(fromdeck, histdeck, overwrite = TRUE)
+if(!ok){
+  warning(paste("Failed to copy",
+                fromdeck,
+                "to",
+                histdeck))
+}
+ok <- file.copy(fromdeck, basedeck, overwrite = TRUE)
+if(!ok){
+  warning(paste("Failed to copy",
+                fromdeck,
+                "to",
+                basedeck))
+}
+fromgrid <- file.path(frompath,"GRID")
+togrid <- file.path(topath,"GRID")
+if(!dir.exists(togrid)){
+  ok <- dir.create(togrid)
+  if(!ok){
+    warning(paste("Failed to create directory",
+                  togrid))
+  }
+}
+incs <- c("SPE9.GRDECL", "PERMVALUES.INC")
+for(i in 1:length(incs)){
+  ok <- file.copy(file.path(fromgrid,incs[i]),
+            file.path(togrid,incs[i]),
+            overwrite = TRUE)
+  if(!ok){
+  warning(paste("Failed to copy",
+                file.path(fromgrid,incs[i]),
+                "to",
+                file.path(togrid,incs[i])))
+}
+}
+permedit <- list()
+permedit <- c(permedit, "MULTIPLY")
+for(i in 1:length(mults)){
+  permedit <- c(permedit,
+                paste("    'PERMX'", mults[i], 1, 24, 1, 25, i, i, "/"))
+}
+permedit <- c(permedit, "/")
+permedit <- c(permedit, "ENDBOX")
+permedit <- c(permedit, "COPY")
+permedit <- c(permedit,  "	  PERMX PERMY  /")
+permedit <- c(permedit,  "	  PERMX PERMZ  /")
+permedit <- c(permedit,  "/")
+permedit <- c(permedit,  "MULTIPLY")
+permedit <- c(permedit,  "	  PERMZ 0.01 /")
+permedit <- c(permedit,  "/")
+permedit <- unlist(permedit)
+bd <- readLines(basedeck)
+inpoint <- grep("PERMVALUES", bd) + 1
+bd <- c(bd[1:inpoint], permedit, bd[(inpoint+1):length(bd)])
+writeLines(bd, con=basedeck)
+```
+
+## Run the Cases
+
+
+```r
+indecks <- list.files(path=topath, pattern="^\\w+\\.(DATA|data)$")
+for(i in 1:length(indecks)){
+  ok <- runflow(indecks[i], basedir="sim", wait=TRUE)
+  if(ok > 0){print(ok)}
+}
+```
+
+```
+## Warning in runflow(indecks[i], basedir = "sim", wait = TRUE): Case not run
+## because existing summary is newer than input deck.
+```
+
+```
+## [1] "Case not run because existing summary is newer than input deck."
+```
+
+```
+## Warning in runflow(indecks[i], basedir = "sim", wait = TRUE): Case not run
+## because existing summary is newer than input deck.
+```
+
+```
+## [1] "Case not run because existing summary is newer than input deck."
+```
+
+```r
+simrslts <- eclsum(basedir="sim")
+#ploteach(simrslts)
+ploteach(simrslts, wgnames="FIELD")
+```
+
+<img src="buildhmdeck_files/figure-html/runsim-1.png" width="45%" height="45%" /><img src="buildhmdeck_files/figure-html/runsim-2.png" width="45%" height="45%" /><img src="buildhmdeck_files/figure-html/runsim-3.png" width="45%" height="45%" /><img src="buildhmdeck_files/figure-html/runsim-4.png" width="45%" height="45%" />
+
+## Create a Template Deck.
+
+
+```r
+spe9templ <- file.path(topath, "SPE9.TEMPLATE")
+ok <- file.copy(fromdeck, spe9templ, overwrite = TRUE)
+if(!ok){
+  warning(paste("Failed to copy",
+                fromdeck,
+                "to",
+                spe9templ))
+}
+permedit <- list()
+permedit <- c(permedit, "MULTIPLY")
+for(i in 1:length(mults)){
+  permedit <- c(permedit,
+                paste("    'PERMX'", paste0("{$PERMX_",i,"}"),
+                      1, 24, 1, 25, i, i, "/"))
+}
+permedit <- c(permedit, "/")
+permedit <- c(permedit, "ENDBOX")
+permedit <- c(permedit, "COPY")
+permedit <- c(permedit,  "	  PERMX PERMY  /")
+permedit <- c(permedit,  "	  PERMX PERMZ  /")
+permedit <- c(permedit,  "/")
+permedit <- c(permedit,  "MULTIPLY")
+permedit <- c(permedit,  "	  PERMZ 0.01 /")
+permedit <- c(permedit,  "/")
+permedit <- unlist(permedit)
+td <- readLines(spe9templ)
+inpoint <- grep("PERMVALUES", td) + 1
+td <- c(td[1:inpoint], permedit, td[(inpoint+1):length(td)])
+writeLines(td, con=spe9templ)
+```
 
